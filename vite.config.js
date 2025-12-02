@@ -10,4 +10,5 @@ export default defineConfig({
       },
     }),
   ],
+  base: '/stocking-web/', // ★ GitHub Pages 배포를 위한 경로 설정
 })

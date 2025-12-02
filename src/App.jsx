@@ -7,36 +7,7 @@ import Portfolio from './pages/Portfolio';
 import Diary from './pages/Diary';
 import Research from './pages/Research';
 import Community from './pages/Community';
-
-const SUMMARY_CARDS = [
-  {
-    id: 'balance',
-    label: '총 자산',
-    value: '₩45,320,000',
-    change: '+3.2% 오늘',
-    changeType: 'positive',
-    gradient: 'from-purple-500 to-indigo-600',
-    icon: '💰',
-  },
-  {
-    id: 'invested',
-    label: '투자 원금',
-    value: '₩37,450,000',
-    change: '+₩520,000 이번 주',
-    changeType: 'positive',
-    gradient: 'from-blue-500 to-cyan-600',
-    icon: '📈',
-  },
-  {
-    id: 'cash',
-    label: '가용 현금',
-    value: '₩7,870,000',
-    change: '신규 입금 없음',
-    changeType: 'neutral',
-    gradient: 'from-emerald-500 to-teal-600',
-    icon: '💵',
-  },
-];
+import { SUMMARY_CARDS } from './data';
 
 const VIEW_COMPONENTS = {
   dashboard: Dashboard,

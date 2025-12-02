@@ -1,11 +1,5 @@
 import PropTypes from 'prop-types';
-
-const PORTFOLIO_STOCKS = [
-  { name: '삼성전자', symbol: '005930', price: '₩72,400', change: '+2.3%', trend: 'up' },
-  { name: 'SK하이닉스', symbol: '000660', price: '₩145,200', change: '+5.1%', trend: 'up' },
-  { name: 'NAVER', symbol: '035420', price: '₩198,500', change: '-1.2%', trend: 'down' },
-  { name: '카카오', symbol: '035720', price: '₩52,300', change: '+0.8%', trend: 'up' },
-];
+import { PORTFOLIO_STOCKS } from '../data';
 
 const Dashboard = ({ title, description }) => (
   <div className="grid gap-6 lg:grid-cols-2">
