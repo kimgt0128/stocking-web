@@ -13,7 +13,7 @@ const SIDEBAR_STYLES = {
     'text-slate-600 hover:bg-violet-50 hover:text-violet-700',
   menuActive:
     'bg-violet-600 text-white shadow-sm hover:bg-violet-700',
-  icon: 'text-xl',
+  icon: 'text-xl w-5 h-5 flex-shrink-0',
   footer:
     'border-t border-slate-100 px-8 py-6 text-xs font-medium text-slate-400',
 };
@@ -52,9 +52,12 @@ const Sidebar = ({ activeMenu, onMenuChange }) => {
                   }`}
                   aria-pressed={isActive}
                 >
-                  <span aria-hidden="true" className={SIDEBAR_STYLES.icon}>
-                    {item.icon}
-                  </span>
+                  {item.icon && (
+                    <item.icon 
+                      aria-hidden="true" 
+                      className={`${SIDEBAR_STYLES.icon} ${isActive ? 'text-white' : 'text-slate-600'}`}
+                    />
+                  )}
                   <span className={isActive ? 'font-semibold' : 'font-medium'}>
                     {item.label}
                   </span>

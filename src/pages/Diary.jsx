@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState, useMemo } from 'react';
-import { DIARY_STATS, MOOD_INDICATORS } from '../data';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import StockIcon from '../components/common/StockIcon';
 
 /**
@@ -137,6 +137,9 @@ const Diary = ({ title, description }) => {
   
   // 월별 보기 상태 관리
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // 0: 이번달, -1: 저번달, 1: 다음달
+
+  // 일기 작성 통계 그래프용 뷰 모드
+  const [diaryStatsViewMode, setDiaryStatsViewMode] = useState('daily'); // 'daily' | 'weekly' | 'monthly'
 
   // UI 상태 관리
   const [showForm, setShowForm] = useState(false);
@@ -510,15 +513,79 @@ const Diary = ({ title, description }) => {
   }, [entries]);
 
   /**
-   * 통계 계산 (평균 승률) - 간단한 계산 (긍정적 감정 비율)
+   * 일기 작성 통계 데이터 생성 (일별/주별/월별)
    */
-  const winRate = useMemo(() => {
-    if (entries.length === 0) return 0;
-    const positiveCount = entries.filter(
-      (entry) => entry.emotion === '긍정적' || entry.emotion === '만족' || entry.emotion === '기대'
-    ).length;
-    return Math.round((positiveCount / entries.length) * 100);
-  }, [entries]);
+  const diaryStatsData = useMemo(() => {
+    const data = [];
+    
+    if (diaryStatsViewMode === 'daily') {
+      // 최근 30일 데이터
+      const today = new Date();
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const dateStr = formatDate(date);
+        const myCount = entries.filter(e => e.date === dateStr).length;
+        // 사용자 평균 (Mock 데이터: 0.5 ~ 2.5 사이 랜덤)
+        const avgCount = 1.2 + Math.sin(i * 0.2) * 0.8;
+        
+        data.push({
+          date: dateStr,
+          label: `${date.getMonth() + 1}/${date.getDate()}`,
+          myCount,
+          avgCount: Math.round(avgCount * 10) / 10,
+        });
+      }
+    } else if (diaryStatsViewMode === 'weekly') {
+      // 최근 12주 데이터
+      const today = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - (i * 7));
+        const { start, end } = getWeekRange(-i);
+        
+        const myCount = entries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= start && entryDate <= end;
+        }).length;
+        
+        // 사용자 평균 (Mock 데이터)
+        const avgCount = 2.5 + Math.sin(i * 0.3) * 1.5;
+        
+        data.push({
+          date: formatDate(start),
+          label: `${start.getMonth() + 1}/${start.getDate()}주`,
+          myCount,
+          avgCount: Math.round(avgCount * 10) / 10,
+        });
+      }
+    } else if (diaryStatsViewMode === 'monthly') {
+      // 최근 12개월 데이터
+      const today = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const { start, end } = getMonthRange(-i);
+        
+        const myCount = entries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= start && entryDate <= end;
+        }).length;
+        
+        // 사용자 평균 (Mock 데이터)
+        const avgCount = 8 + Math.sin(i * 0.4) * 4;
+        
+        const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+        data.push({
+          date: formatDate(start),
+          label: `${monthDate.getFullYear()}년 ${monthNames[monthDate.getMonth()]}`,
+          myCount,
+          avgCount: Math.round(avgCount * 10) / 10,
+        });
+      }
+    }
+    
+    return data;
+  }, [entries, diaryStatsViewMode]);
 
   // 월별 캘린더 데이터
   const calendarData = useMemo(() => {
@@ -532,32 +599,127 @@ const Diary = ({ title, description }) => {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-        <div className="mb-6">
+        <div className="mb-4">
           <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
           <p className="mt-2 text-sm text-slate-600">{description}</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className="relative">
-              <span className="text-3xl drop-shadow-sm">📝</span>
-              <p className="mt-3 text-sm font-medium text-white/90">총 기록</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-white">{totalEntries}개</p>
+        {/* 일기 작성 통계 그래프 */}
+        <div className="mt-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900">일기 작성 통계</h3>
+            <div className="flex gap-2 rounded-lg bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setDiaryStatsViewMode('daily')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                  diaryStatsViewMode === 'daily'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                일별
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiaryStatsViewMode('weekly')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                  diaryStatsViewMode === 'weekly'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                주별
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiaryStatsViewMode('monthly')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                  diaryStatsViewMode === 'monthly'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                월별
+              </button>
             </div>
           </div>
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className="relative">
-              <span className="text-3xl drop-shadow-sm">📅</span>
-              <p className="mt-3 text-sm font-medium text-white/90">이번 주</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-white">{thisWeekEntries}개</p>
-            </div>
-          </div>
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div className="relative">
-              <span className="text-3xl drop-shadow-sm">🎯</span>
-              <p className="mt-3 text-sm font-medium text-white/90">평균 승률</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-white">{winRate}%</p>
-            </div>
+          <div style={{ height: '250px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={diaryStatsData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+              >
+                <defs>
+                  <linearGradient id="colorMyCount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05}/>
+                  </linearGradient>
+                  <linearGradient id="colorAvgCount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#64748b" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#64748b" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.3} />
+                <XAxis 
+                  dataKey="label" 
+                  stroke="#64748b"
+                  style={{ fontSize: '11px', fontWeight: '500' }}
+                  tick={{ fill: '#64748b' }}
+                  angle={diaryStatsViewMode === 'daily' ? -45 : 0}
+                  textAnchor={diaryStatsViewMode === 'daily' ? 'end' : 'middle'}
+                  height={diaryStatsViewMode === 'daily' ? 50 : 30}
+                />
+                <YAxis 
+                  stroke="#64748b"
+                  style={{ fontSize: '11px', fontWeight: '500' }}
+                  tick={{ fill: '#64748b' }}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value, name) => {
+                    if (name === 'myCount') {
+                      return [`${value}개`, '내 일기수'];
+                    }
+                    return [`${value}개`, '사용자 평균'];
+                  }}
+                  labelFormatter={(label) => `📅 ${label}`}
+                />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  iconType="line"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="myCount"
+                  stroke="#8b5cf6"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#8b5cf6' }}
+                  activeDot={{ r: 5, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
+                  name="내 일기수"
+                  strokeLinecap="round"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="avgCount"
+                  stroke="#64748b"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{ r: 3, fill: '#64748b' }}
+                  activeDot={{ r: 5, fill: '#64748b', stroke: '#fff', strokeWidth: 2 }}
+                  name="사용자 평균"
+                  strokeLinecap="round"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </section>
@@ -982,6 +1144,7 @@ const Diary = ({ title, description }) => {
 
             <div className="space-y-4">
               {Object.entries(emotionStats).map(([emotion, count]) => {
+                const totalEntries = entries.length;
                 const percentage = totalEntries > 0 ? Math.round((count / totalEntries) * 100) : 0;
                 const color =
                   emotion === '긍정적' || emotion === '만족' || emotion === '기대'
