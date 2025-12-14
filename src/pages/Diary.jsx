@@ -1,6 +1,124 @@
 import PropTypes from 'prop-types';
 import { useState, useMemo } from 'react';
 import { DIARY_STATS, MOOD_INDICATORS } from '../data';
+import StockIcon from '../components/common/StockIcon';
+
+/**
+ * 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
+ */
+const formatDateString = (date) => {
+  if (!date) return '';
+  const d = date instanceof Date ? date : new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Mock 데이터 생성 함수
+ * 현재 날짜를 기준으로 이번 주, 저번 주, 이번 달, 저번 달에 데이터 생성
+ */
+const generateMockEntries = () => {
+  const today = new Date();
+  const entries = [];
+  let idCounter = 1;
+
+  // 이번 주 데이터 (월~일)
+  const thisWeekStart = new Date(today);
+  const currentDay = today.getDay();
+  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+  thisWeekStart.setDate(today.getDate() + mondayOffset);
+  
+  const thisWeekEntries = [
+    { stock: '삼성전자', type: 'BUY', price: '₩72,400', shares: 10, reason: '반도체 업황 개선 기대. 최근 실적 발표에서 긍정적인 전망 제시', emotion: '긍정적', tags: ['반도체', '장기투자'] },
+    { stock: 'SK하이닉스', type: 'SELL', price: '₩145,200', shares: 5, reason: '목표가 도달로 일부 수익 실현. 추가 상승 가능성도 있지만 리스크 관리 차원', emotion: '만족', tags: ['수익실현', '리스크관리'] },
+    { stock: 'NAVER', type: 'BUY', price: '₩198,500', shares: 3, reason: 'AI 기술 투자 확대 발표. 장기적 성장 가능성 높음', emotion: '기대', tags: ['AI', '성장주'] },
+    { stock: '카카오', type: 'BUY', price: '₩52,300', shares: 20, reason: '모바일 게임 부문 성장세 지속', emotion: '긍정적', tags: ['게임', '모바일'] },
+  ];
+
+  thisWeekEntries.forEach((entry, index) => {
+    const date = new Date(thisWeekStart);
+    date.setDate(thisWeekStart.getDate() + index);
+    if (date <= today) {
+      entries.push({
+        id: idCounter++,
+        date: formatDateString(date),
+        ...entry,
+      });
+    }
+  });
+
+  // 저번 주 데이터
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+  
+  const lastWeekEntries = [
+    { stock: 'LG전자', type: 'SELL', price: '₩98,500', shares: 8, reason: '목표가 달성으로 수익 실현', emotion: '만족', tags: ['가전', '수익실현'] },
+    { stock: '현대차', type: 'BUY', price: '₩245,000', shares: 5, reason: '전기차 시장 확대 기대', emotion: '기대', tags: ['전기차', '자동차'] },
+    { stock: '셀트리온', type: 'BUY', price: '₩185,000', shares: 7, reason: '신약 파이프라인 긍정적 전망', emotion: '긍정적', tags: ['바이오', '신약'] },
+  ];
+
+  lastWeekEntries.forEach((entry, index) => {
+    const date = new Date(lastWeekStart);
+    date.setDate(lastWeekStart.getDate() + index * 2);
+    entries.push({
+      id: idCounter++,
+      date: formatDateString(date),
+      ...entry,
+    });
+  });
+
+  // 이번 달 데이터 (이번 주와 저번 주 제외한 날짜들)
+  const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const thisMonthEntries = [
+    { stock: '포스코', type: 'BUY', price: '₩425,000', shares: 3, reason: '철강 수요 회복 기대', emotion: '긍정적', tags: ['철강', '원자재'] },
+    { stock: 'KB금융', type: 'BUY', price: '₩58,200', shares: 15, reason: '금리 인하 기대에 따른 금융주 상승', emotion: '기대', tags: ['금융', '은행'] },
+    { stock: 'LG화학', type: 'SELL', price: '₩412,000', shares: 4, reason: '단기 조정 국면 진입', emotion: '중립', tags: ['화학', '조정'] },
+    { stock: '아모레퍼시픽', type: 'BUY', price: '₩125,000', shares: 8, reason: '중국 시장 회복 기대', emotion: '기대', tags: ['화장품', '소비재'] },
+  ];
+
+  // 이번 달 초반 날짜들에 데이터 추가 (1일~10일 사이)
+  thisMonthEntries.forEach((entry, index) => {
+    const date = new Date(thisMonthStart);
+    date.setDate(1 + index * 3);
+    // 이번 주와 저번 주 범위가 아닌 경우만 추가
+    const weekStart = new Date(thisWeekStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+    const weekEnd = new Date(thisWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    if (date < weekStart || date > weekEnd) {
+      entries.push({
+        id: idCounter++,
+        date: formatDateString(date),
+        ...entry,
+      });
+    }
+  });
+
+  // 저번 달 데이터
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthEntries = [
+    { stock: '삼성SDI', type: 'BUY', price: '₩385,000', shares: 5, reason: '2차전지 수요 증가', emotion: '긍정적', tags: ['2차전지', '배터리'] },
+    { stock: 'SK텔레콤', type: 'BUY', price: '₩52,800', shares: 12, reason: '5G 인프라 확대', emotion: '기대', tags: ['통신', '5G'] },
+    { stock: '한화솔루션', type: 'SELL', price: '₩28,500', shares: 20, reason: '목표가 달성', emotion: '만족', tags: ['에너지', '수익실현'] },
+    { stock: '롯데케미칼', type: 'BUY', price: '₩185,000', shares: 6, reason: '화학 업황 개선', emotion: '긍정적', tags: ['화학', '업황개선'] },
+    { stock: 'CJ제일제당', type: 'BUY', price: '₩385,000', shares: 3, reason: '식품 부문 성장', emotion: '긍정적', tags: ['식품', '소비재'] },
+  ];
+
+  lastMonthEntries.forEach((entry, index) => {
+    const date = new Date(lastMonthStart);
+    date.setDate(5 + index * 5);
+    entries.push({
+      id: idCounter++,
+      date: formatDateString(date),
+      ...entry,
+    });
+  });
+
+  // 날짜순으로 정렬 (최신순)
+  return entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+};
 
 /**
  * 투자 일기 페이지 컴포넌트
@@ -8,75 +126,8 @@ import { DIARY_STATS, MOOD_INDICATORS } from '../data';
  * 최근/주별/월별 보기 기능 포함
  */
 const Diary = ({ title, description }) => {
-  // 일지 목록 상태 관리
-  const [entries, setEntries] = useState([
-    {
-      id: 1,
-      date: '2025-01-24',
-      stock: '삼성전자',
-      type: 'BUY',
-      price: '₩72,400',
-      shares: 10,
-      reason: '반도체 업황 개선 기대. 최근 실적 발표에서 긍정적인 전망 제시',
-      emotion: '긍정적',
-      tags: ['반도체', '장기투자'],
-    },
-    {
-      id: 2,
-      date: '2025-01-23',
-      stock: 'SK하이닉스',
-      type: 'SELL',
-      price: '₩145,200',
-      shares: 5,
-      reason: '목표가 도달로 일부 수익 실현. 추가 상승 가능성도 있지만 리스크 관리 차원',
-      emotion: '만족',
-      tags: ['수익실현', '리스크관리'],
-    },
-    {
-      id: 3,
-      date: '2025-01-22',
-      stock: 'NAVER',
-      type: 'BUY',
-      price: '₩198,500',
-      shares: 3,
-      reason: 'AI 기술 투자 확대 발표. 장기적 성장 가능성 높음',
-      emotion: '기대',
-      tags: ['AI', '성장주'],
-    },
-    {
-      id: 4,
-      date: '2025-01-20',
-      stock: '카카오',
-      type: 'BUY',
-      price: '₩52,300',
-      shares: 20,
-      reason: '모바일 게임 부문 성장세 지속',
-      emotion: '긍정적',
-      tags: ['게임', '모바일'],
-    },
-    {
-      id: 5,
-      date: '2025-01-18',
-      stock: 'LG전자',
-      type: 'SELL',
-      price: '₩98,500',
-      shares: 8,
-      reason: '목표가 달성',
-      emotion: '만족',
-      tags: ['가전', '수익실현'],
-    },
-    {
-      id: 6,
-      date: '2025-01-15',
-      stock: '현대차',
-      type: 'BUY',
-      price: '₩245,000',
-      shares: 5,
-      reason: '전기차 시장 확대 기대',
-      emotion: '기대',
-      tags: ['전기차', '자동차'],
-    },
-  ]);
+  // 일지 목록 상태 관리 (현재 날짜 기준으로 동적 생성)
+  const [entries, setEntries] = useState(() => generateMockEntries());
 
   // 뷰 모드 상태 관리 (recent, weekly, monthly)
   const [viewMode, setViewMode] = useState('recent');
@@ -105,6 +156,7 @@ const Diary = ({ title, description }) => {
 
   // 감정 옵션
   const EMOTION_OPTIONS = ['긍정적', '중립', '부정적', '기대', '만족', '우려'];
+
 
   /**
    * 주의 시작일(월요일)과 종료일(일요일) 계산
@@ -144,7 +196,9 @@ const Diary = ({ title, description }) => {
    * 날짜를 YYYY-MM-DD 형식으로 변환
    */
   const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString().split('T')[0];
   };
 
   /**
@@ -263,8 +317,9 @@ const Diary = ({ title, description }) => {
     }
 
     // ID 생성 (이벤트 핸들러 내부이므로 안전)
-    // eslint-disable-next-line react-compiler/react-compiler
-    const entryId = `${new Date().getTime()}-${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = new Date().getTime();
+    const randomStr = Math.random().toString(36).substring(2, 11);
+    const entryId = `${timestamp}-${randomStr}`;
 
     const newEntry = {
       id: entryId,
@@ -764,15 +819,15 @@ const Diary = ({ title, description }) => {
                   >
                     <div className="mb-4 flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div
+                        <StockIcon
+                          stockName={entry.stock}
+                          type={entry.type}
                           className={`flex h-12 w-12 items-center justify-center rounded-xl ${
                             entry.type === 'BUY'
                               ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
                               : 'bg-gradient-to-br from-rose-500 to-rose-600'
-                          } text-white shadow-sm`}
-                        >
-                          <span className="text-xl">{entry.type === 'BUY' ? '📈' : '📉'}</span>
-                        </div>
+                          } text-white shadow-sm overflow-hidden`}
+                        />
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-bold text-slate-900">{entry.stock}</h4>
