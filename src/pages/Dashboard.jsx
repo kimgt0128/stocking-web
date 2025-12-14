@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { PORTFOLIO_STOCKS } from '../data';
+import StockIcon from '../components/common/StockIcon';
 
 const Dashboard = ({ title, description }) => (
   <div className="grid gap-6 lg:grid-cols-2">
@@ -17,9 +18,11 @@ const Dashboard = ({ title, description }) => (
             className="flex items-center justify-between rounded-xl bg-slate-50 p-4 transition-all duration-200 hover:shadow-sm hover:bg-white border border-transparent hover:border-slate-100"
           >
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
-                <span className="text-lg">📊</span>
-              </div>
+              <StockIcon
+                stockName={stock.name}
+                size="md"
+                className="rounded-lg bg-violet-50 text-violet-600"
+              />
               <div>
                 <p className="font-semibold text-slate-900">{stock.name}</p>
                 <p className="text-xs text-slate-500">{stock.symbol}</p>
