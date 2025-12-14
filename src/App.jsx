@@ -7,7 +7,6 @@ import Portfolio from './pages/Portfolio';
 import Diary from './pages/Diary';
 import Research from './pages/Research';
 import Community from './pages/Community';
-import { SUMMARY_CARDS } from './data';
 
 const VIEW_COMPONENTS = {
   dashboard: Dashboard,
@@ -26,7 +25,7 @@ function App({ initialMenu }) {
     NAV_ITEMS.find((item) => item.value === activeMenu)?.label || '대시보드';
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900" style={{ fontFamily: "'Pretendard Variable', 'Inter', system-ui, sans-serif" }}>
       <Sidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
       <div className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-6 bg-white px-8 py-6 shadow-sm border-b border-slate-100">
@@ -63,40 +62,7 @@ function App({ initialMenu }) {
         </header>
 
         <main className="flex-1 overflow-y-auto h-screen scrollbar-hide px-8 py-8">
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {SUMMARY_CARDS.map((card) => (
-                <article
-                  key={card.id}
-                  className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 shadow-sm transition-all duration-300 hover:shadow-md`}
-                >
-                  <div className="relative">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-3xl drop-shadow-sm">{card.icon}</span>
-                    </div>
-                    <p className="text-sm font-medium text-white/90">
-                      {card.label}
-                    </p>
-                    <p className="mt-2 text-3xl font-bold text-white tracking-tight">
-                      {card.value}
-                    </p>
-                    <p
-                      className={`mt-3 text-sm font-medium ${
-                        card.changeType === 'positive'
-                          ? 'text-white/80'
-                          : card.changeType === 'negative'
-                            ? 'text-white/80'
-                            : 'text-white/70'
-                      }`}
-                    >
-                      {card.change}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <ActiveView />
-          </div>
+          <ActiveView />
         </main>
       </div>
     </div>

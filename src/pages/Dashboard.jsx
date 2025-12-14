@@ -1,9 +1,65 @@
 import PropTypes from 'prop-types';
+import { useState } from 'react';
 import { PORTFOLIO_STOCKS } from '../data';
 import StockIcon from '../components/common/StockIcon';
 
-const Dashboard = ({ title, description }) => (
-  <div className="grid gap-6 lg:grid-cols-2">
+/**
+ * AI 분석 텍스트 목록 (미리 정의된 분석 내용)
+ * 나중에 Gemini API로 확장 예정
+ */
+const AI_ANALYSIS_TEXTS = [
+  "현재 포트폴리오는 반도체와 IT 섹터에 집중되어 있어 시장 변동성에 민감할 수 있습니다. 분산 투자를 통해 리스크를 완화하는 것을 권장합니다.",
+  "최근 매매 패턴을 분석한 결과, 단기 매매보다는 중장기 투자 전략이 더 유리할 것으로 보입니다. 보유 종목들의 실적 발표 시즌을 주의 깊게 관찰하세요.",
+  "현금 비율이 10%로 적정 수준입니다. 추가 투자 기회가 있을 때를 대비해 유동성을 유지하는 것이 좋겠습니다.",
+  "포트폴리오의 평균 수익률이 시장 평균을 상회하고 있습니다. 현재 전략을 유지하되, 과도한 집중 투자는 피하는 것이 좋습니다.",
+  "국내 주식 비중이 65%로 높습니다. 글로벌 시장 다변화를 통해 환율 리스크를 분산시킬 수 있는 기회를 고려해보세요.",
+  "최근 매매일지를 보면 감정적 매매보다는 체계적인 분석에 기반한 결정이 늘어나고 있습니다. 이는 좋은 신호입니다.",
+  "보유 종목들의 섹터별 분산이 개선되고 있습니다. 바이오와 금융 섹터 추가를 통해 더욱 안정적인 포트폴리오를 구성할 수 있습니다.",
+  "현재 포트폴리오는 성장주 중심으로 구성되어 있습니다. 가치주 일부 추가를 통해 밸런스를 맞추는 것을 검토해보세요.",
+  "매매 빈도가 적절한 수준입니다. 과도한 거래는 수수료 부담을 증가시킬 수 있으니 신중한 접근이 필요합니다.",
+  "포트폴리오의 리스크 대비 수익률이 양호합니다. 다만 글로벌 경제 불확실성에 대비해 방어적 자산 비중을 점진적으로 늘리는 것을 고려해보세요."
+];
+
+const Dashboard = ({ title, description }) => {
+  // 매번 로딩 시 랜덤하게 AI 분석 텍스트 선택 (진짜 AI처럼 보이게)
+  // useState의 초기값 함수를 사용하여 컴포넌트 마운트 시 한 번만 랜덤 선택
+  const [aiAnalysis] = useState(() => {
+    const randomIndex = Math.floor(Math.random() * AI_ANALYSIS_TEXTS.length);
+    return AI_ANALYSIS_TEXTS[randomIndex];
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* AI 분석 박스 */}
+      <article className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="relative">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <span className="text-2xl">🤖</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">AI 분석</h3>
+              <p className="text-xs text-white/70">포트폴리오 인사이트</p>
+            </div>
+            <div className="ml-auto">
+              <span className="rounded-lg bg-white/20 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
+                Gemini AI
+              </span>
+            </div>
+          </div>
+          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 border border-white/20">
+            <p className="text-sm leading-relaxed text-white/90">
+              {aiAnalysis}
+            </p>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-white/60">
+            <span>⚡</span>
+            <span>실시간 분석 · {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        </div>
+      </article>
+
+      <div className="grid gap-6 lg:grid-cols-2">
     <section className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-900">My Stocks</h2>
@@ -105,8 +161,10 @@ const Dashboard = ({ title, description }) => (
         </div>
       </div>
     </section>
+    </div>
   </div>
-);
+  );
+};
 
 Dashboard.propTypes = {
   description: PropTypes.string,
