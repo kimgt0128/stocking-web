@@ -81,3 +81,4 @@ StockIcon.defaultProps = {
 };
 
 export default StockIcon;
+

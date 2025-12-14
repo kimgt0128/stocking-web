@@ -141,6 +141,11 @@ const Diary = ({ title, description }) => {
   // UI 상태 관리
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  
+  // 모달 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewingEntry, setViewingEntry] = useState(null);
+  const [modalMode, setModalMode] = useState('view'); // 'view' | 'edit' | 'create'
 
   // 일지 폼 상태
   const [formData, setFormData] = useState({
@@ -226,19 +231,11 @@ const Diary = ({ title, description }) => {
   };
 
   /**
-   * 특정 날짜에 매매일지가 있는지 확인
+   * 특정 날짜의 매매일지 목록 반환
    */
-  const hasEntryOnDate = (date) => {
+  const getEntriesOnDate = (date) => {
     const dateStr = formatDate(date);
-    return entries.some((entry) => entry.date === dateStr);
-  };
-
-  /**
-   * 특정 날짜의 매매일지 개수
-   */
-  const getEntryCountOnDate = (date) => {
-    const dateStr = formatDate(date);
-    return entries.filter((entry) => entry.date === dateStr).length;
+    return entries.filter((entry) => entry.date === dateStr);
   };
 
   /**
@@ -339,6 +336,7 @@ const Diary = ({ title, description }) => {
     setEntries([newEntry, ...entries]);
     resetForm();
     setShowForm(false);
+    handleCloseModal();
   };
 
   /**
@@ -374,6 +372,7 @@ const Diary = ({ title, description }) => {
     resetForm();
     setEditingEntry(null);
     setShowForm(false);
+    handleCloseModal();
   };
 
   /**
@@ -400,7 +399,59 @@ const Diary = ({ title, description }) => {
       emotion: entry.emotion,
       tags: entry.tags.join(', '),
     });
-    setShowForm(true);
+    setModalMode('edit');
+    setIsModalOpen(true);
+  };
+
+  /**
+   * 일지 상세보기
+   */
+  const handleViewEntry = (entry) => {
+    setViewingEntry(entry);
+    setModalMode('view');
+    setIsModalOpen(true);
+  };
+
+  /**
+   * 새 일지 작성 모달 열기
+   */
+  const handleOpenCreateModal = () => {
+    resetForm();
+    setEditingEntry(null);
+    setViewingEntry(null);
+    setModalMode('create');
+    setIsModalOpen(true);
+  };
+
+  /**
+   * 모달 닫기
+   */
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setViewingEntry(null);
+    setEditingEntry(null);
+    setModalMode('view');
+    resetForm();
+  };
+
+  /**
+   * 모달에서 수정 모드로 전환
+   */
+  const handleSwitchToEdit = () => {
+    if (viewingEntry) {
+      setEditingEntry(viewingEntry);
+      setFormData({
+        date: viewingEntry.date,
+        stock: viewingEntry.stock,
+        type: viewingEntry.type,
+        price: viewingEntry.price,
+        shares: viewingEntry.shares.toString(),
+        reason: viewingEntry.reason,
+        emotion: viewingEntry.emotion,
+        tags: viewingEntry.tags.join(', '),
+      });
+      setModalMode('edit');
+    }
   };
 
   /**
@@ -426,6 +477,9 @@ const Diary = ({ title, description }) => {
     resetForm();
     setShowForm(false);
     setEditingEntry(null);
+    if (isModalOpen) {
+      handleCloseModal();
+    }
   };
 
   /**
@@ -559,14 +613,10 @@ const Diary = ({ title, description }) => {
             </div>
             <button
               type="button"
-              onClick={() => {
-                resetForm();
-                setShowForm(!showForm);
-                setEditingEntry(null);
-              }}
+              onClick={handleOpenCreateModal}
               className="rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:shadow-md hover:from-violet-700 hover:to-violet-800"
             >
-              {showForm ? '취소' : '+ 새 일지 작성'}
+              + 새 일지 작성
             </button>
           </div>
 
@@ -625,8 +675,8 @@ const Diary = ({ title, description }) => {
             </div>
           )}
 
-          {/* 일지 작성/수정 폼 */}
-          {showForm && (
+          {/* 일지 작성/수정 폼 (인라인 - 기존 호환성 유지) */}
+          {showForm && !isModalOpen && (
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <h4 className="mb-4 text-lg font-bold text-slate-900">
                 {editingEntry ? '일지 수정' : '새 일지 작성'}
@@ -765,13 +815,13 @@ const Diary = ({ title, description }) => {
                     const { month } = getMonthRange(currentMonthOffset);
                     const isCurrentMonth = date.getMonth() === month;
                     const isToday = formatDate(date) === formatDate(new Date());
-                    const hasEntry = hasEntryOnDate(date);
-                    const entryCount = getEntryCountOnDate(date);
+                    const dateEntries = getEntriesOnDate(date);
+                    const hasEntry = dateEntries.length > 0;
                     
                     return (
                       <div
                         key={`${weekIndex}-${dayIndex}`}
-                        className={`relative rounded-lg border-2 p-2 min-h-[80px] transition-all duration-200 ${
+                        className={`relative rounded-lg border-2 p-2 min-h-[100px] transition-all duration-200 ${
                           isCurrentMonth
                             ? hasEntry
                               ? 'border-violet-300 bg-violet-50 hover:bg-violet-100'
@@ -780,20 +830,41 @@ const Diary = ({ title, description }) => {
                         } ${isToday ? 'ring-2 ring-violet-500' : ''}`}
                       >
                         <div
-                          className={`text-sm font-semibold mb-1 ${
+                          className={`text-sm font-semibold mb-2 ${
                             isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
                           } ${isToday ? 'text-violet-700' : ''}`}
                         >
                           {date.getDate()}
                         </div>
                         {hasEntry && isCurrentMonth && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-violet-600 font-bold">📝</span>
-                            {entryCount > 1 && (
-                              <span className="text-xs text-violet-600 font-semibold">
-                                {entryCount}개
-                              </span>
-                            )}
+                          <div className="space-y-1.5">
+                            {dateEntries.map((entry) => (
+                              <div
+                                key={entry.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewEntry(entry);
+                                }}
+                                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer rounded px-1 py-0.5 hover:bg-white/50"
+                              >
+                                <StockIcon
+                                  stockName={entry.stock}
+                                  type={entry.type}
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                />
+                                <span
+                                  className={`text-xs font-bold ${
+                                    entry.type === 'BUY'
+                                      ? 'text-emerald-600'
+                                      : 'text-rose-600'
+                                  }`}
+                                >
+                                  {entry.type === 'BUY' ? '+' : '-'}
+                                  {entry.shares}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -815,7 +886,8 @@ const Diary = ({ title, description }) => {
                 filteredEntries.map((entry) => (
                   <article
                     key={entry.id}
-                    className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md"
+                    onClick={() => handleViewEntry(entry)}
+                    className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer"
                   >
                     <div className="mb-4 flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -876,14 +948,20 @@ const Diary = ({ title, description }) => {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => handleStartEdit(entry)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEdit(entry);
+                            }}
                             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
                           >
                             수정
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteEntry(entry.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEntry(entry.id);
+                            }}
                             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition-all duration-200 hover:bg-rose-50"
                           >
                             삭제
@@ -948,6 +1026,237 @@ const Diary = ({ title, description }) => {
           </div>
         </section>
       </div>
+
+      {/* 모달 - 상세보기/수정/작성 */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 rounded-t-2xl">
+              <h3 className="text-xl font-bold text-slate-900">
+                {modalMode === 'view' && viewingEntry ? '매매일지 상세보기' : 
+                 modalMode === 'edit' ? '일지 수정' : '새 일지 작성'}
+              </h3>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6">
+              {modalMode === 'view' && viewingEntry ? (
+                // 상세보기 모드
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4">
+                    <StockIcon
+                      stockName={viewingEntry.stock}
+                      type={viewingEntry.type}
+                      className={`flex h-16 w-16 items-center justify-center rounded-xl ${
+                        viewingEntry.type === 'BUY'
+                          ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+                          : 'bg-gradient-to-br from-rose-500 to-rose-600'
+                      } text-white shadow-sm overflow-hidden`}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="text-2xl font-bold text-slate-900">{viewingEntry.stock}</h4>
+                        <span
+                          className={`rounded-lg px-3 py-1 text-sm font-bold ${
+                            viewingEntry.type === 'BUY'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-rose-50 text-rose-700'
+                          }`}
+                        >
+                          {viewingEntry.type === 'BUY' ? '매수' : '매도'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500">{viewingEntry.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-slate-900">{viewingEntry.price}</p>
+                      <p className="text-sm text-slate-600">{viewingEntry.shares}주</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-2 text-sm font-semibold text-slate-700">매매 근거</p>
+                    <p className="text-sm text-slate-600 leading-relaxed">{viewingEntry.reason}</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-400">감정:</span>
+                      <span className="rounded-lg bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                        {viewingEntry.emotion}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {viewingEntry.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-lg bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={handleSwitchToEdit}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:shadow-md hover:from-violet-700 hover:to-violet-800"
+                    >
+                      수정하기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('정말 삭제하시겠습니까?')) {
+                          handleDeleteEntry(viewingEntry.id);
+                          handleCloseModal();
+                        }
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-rose-600 transition-all duration-200 hover:bg-rose-50"
+                    >
+                      삭제하기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // 수정/작성 모드
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">날짜</label>
+                      <input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">종목명</label>
+                      <input
+                        type="text"
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        placeholder="예: 삼성전자"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">매매 유형</label>
+                      <select
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      >
+                        <option value="BUY">매수</option>
+                        <option value="SELL">매도</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">가격</label>
+                      <input
+                        type="text"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="예: ₩72,400"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">수량</label>
+                      <input
+                        type="number"
+                        value={formData.shares}
+                        onChange={(e) => setFormData({ ...formData, shares: e.target.value })}
+                        placeholder="예: 10"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">매매 근거</label>
+                    <textarea
+                      value={formData.reason}
+                      onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                      placeholder="매매 근거를 입력하세요"
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">감정</label>
+                      <select
+                        value={formData.emotion}
+                        onChange={(e) => setFormData({ ...formData, emotion: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      >
+                        {EMOTION_OPTIONS.map((emotion) => (
+                          <option key={emotion} value={emotion}>
+                            {emotion}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        태그 (쉼표로 구분)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.tags}
+                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                        placeholder="태그1, 태그2"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={modalMode === 'edit' ? handleUpdateEntry : handleCreateEntry}
+                      className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:shadow-md hover:from-violet-700 hover:to-violet-800"
+                    >
+                      {modalMode === 'edit' ? '수정하기' : '작성하기'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
