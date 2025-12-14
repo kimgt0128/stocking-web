@@ -1,0 +1,36 @@
+feat: 주식 로고 아이콘 기능 공통 모듈화 및 재사용 컴포넌트 생성
+
+- 주식 로고 기능을 공통 모듈로 분리
+  * src/utils/stockIcon.js 생성
+    - getStockIconInfo(): 주식 이름을 받아 로고 정보 반환 (순수 함수)
+    - getStockDomain(): 주식 이름을 도메인으로 변환
+    - STOCK_DOMAIN_MAP: 주식 이름 → 도메인 매핑 (16개 종목)
+    - STOCK_EMOJI_MAP: 주식 이름 앞부분 → 이모지 매핑 (13개 패턴)
+
+  * src/components/common/StockIcon.jsx 생성
+    - 재사용 가능한 주식 아이콘 컴포넌트
+    - 이미지 로딩 실패 시 자동 fallback 처리
+    - 크기 옵션 지원 (sm, md, lg)
+    - PropTypes 및 defaultProps 정의 완료
+
+- 로고 API 변경 (Clearbit → Google Favicon API)
+  * Clearbit Logo API 403 에러 해결
+  * Google Favicon API 사용 (무료, 안정적, API 키 불필요)
+  * Fallback URL 지원 (logo.dev, 직접 favicon)
+
+- 여러 페이지에 StockIcon 컴포넌트 적용
+  * Diary.jsx: 기존 인라인 코드 제거, StockIcon 컴포넌트 사용
+  * Dashboard.jsx: 주식 목록에 StockIcon 적용
+  * Portfolio.jsx: 보유 종목에 StockIcon 적용
+
+통계: 5개 파일 변경 (신규 2개, 수정 3개)
+- 신규 파일: src/utils/stockIcon.js (106줄), src/components/common/StockIcon.jsx (84줄)
+- 수정 파일: src/pages/Diary.jsx, src/pages/Dashboard.jsx, src/pages/Portfolio.jsx
+
+개선 효과:
+- 코드 재사용성 향상: 중복 코드 제거, 공통 모듈로 통합
+- 유지보수성 개선: 주식 로고 로직이 한 곳에 집중
+- 일관성 확보: 모든 페이지에서 동일한 주식 아이콘 표시
+- 확장성 향상: 새로운 주식 추가 시 utils/stockIcon.js만 수정
+- 안정성 개선: Google Favicon API 사용으로 403 에러 해결
+- 프로젝트 규칙 준수: 순수 함수 작성, PropTypes 정의, 단일 책임 원칙
