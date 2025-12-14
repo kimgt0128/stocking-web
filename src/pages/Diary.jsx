@@ -5,6 +5,7 @@ import { DIARY_STATS, MOOD_INDICATORS } from '../data';
 /**
  * 투자 일기 페이지 컴포넌트
  * 매매일지 작성, 수정, 삭제 기능 제공
+ * 최근/주별/월별 보기 기능 포함
  */
 const Diary = ({ title, description }) => {
   // 일지 목록 상태 관리
@@ -42,7 +43,49 @@ const Diary = ({ title, description }) => {
       emotion: '기대',
       tags: ['AI', '성장주'],
     },
+    {
+      id: 4,
+      date: '2025-01-20',
+      stock: '카카오',
+      type: 'BUY',
+      price: '₩52,300',
+      shares: 20,
+      reason: '모바일 게임 부문 성장세 지속',
+      emotion: '긍정적',
+      tags: ['게임', '모바일'],
+    },
+    {
+      id: 5,
+      date: '2025-01-18',
+      stock: 'LG전자',
+      type: 'SELL',
+      price: '₩98,500',
+      shares: 8,
+      reason: '목표가 달성',
+      emotion: '만족',
+      tags: ['가전', '수익실현'],
+    },
+    {
+      id: 6,
+      date: '2025-01-15',
+      stock: '현대차',
+      type: 'BUY',
+      price: '₩245,000',
+      shares: 5,
+      reason: '전기차 시장 확대 기대',
+      emotion: '기대',
+      tags: ['전기차', '자동차'],
+    },
   ]);
+
+  // 뷰 모드 상태 관리 (recent, weekly, monthly)
+  const [viewMode, setViewMode] = useState('recent');
+  
+  // 주별 보기 상태 관리
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // 0: 이번주, -1: 저번주, 1: 다음주
+  
+  // 월별 보기 상태 관리
+  const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // 0: 이번달, -1: 저번달, 1: 다음달
 
   // UI 상태 관리
   const [showForm, setShowForm] = useState(false);
@@ -64,6 +107,153 @@ const Diary = ({ title, description }) => {
   const EMOTION_OPTIONS = ['긍정적', '중립', '부정적', '기대', '만족', '우려'];
 
   /**
+   * 주의 시작일(월요일)과 종료일(일요일) 계산
+   */
+  const getWeekRange = (weekOffset = 0) => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0: 일요일, 1: 월요일, ..., 6: 토요일
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // 월요일까지의 오프셋
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset + (weekOffset * 7));
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    
+    return { start: monday, end: sunday };
+  };
+
+  /**
+   * 월의 첫날과 마지막날 계산
+   */
+  const getMonthRange = (monthOffset = 0) => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + monthOffset;
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // lastDay는 end로 반환되어 사용됨
+    return { start: firstDay, end: lastDay, year, month };
+  };
+
+  /**
+   * 날짜를 YYYY-MM-DD 형식으로 변환
+   */
+  const formatDate = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  /**
+   * 캘린더 그리드 생성
+   */
+  const generateCalendar = (year, month) => {
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // 일요일로 맞춤
+    
+    const calendar = [];
+    const currentDate = new Date(startDate);
+    
+    // 6주치 생성 (42일)
+    for (let week = 0; week < 6; week++) {
+      const weekDays = [];
+      for (let day = 0; day < 7; day++) {
+        weekDays.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      calendar.push(weekDays);
+    }
+    
+    return calendar;
+  };
+
+  /**
+   * 특정 날짜에 매매일지가 있는지 확인
+   */
+  const hasEntryOnDate = (date) => {
+    const dateStr = formatDate(date);
+    return entries.some((entry) => entry.date === dateStr);
+  };
+
+  /**
+   * 특정 날짜의 매매일지 개수
+   */
+  const getEntryCountOnDate = (date) => {
+    const dateStr = formatDate(date);
+    return entries.filter((entry) => entry.date === dateStr).length;
+  };
+
+  /**
+   * 필터링된 일지 목록
+   */
+  const filteredEntries = useMemo(() => {
+    if (viewMode === 'recent') {
+      // 최근 5개만 반환
+      return [...entries]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5);
+    } else if (viewMode === 'weekly') {
+      const { start, end } = getWeekRange(currentWeekOffset);
+      return entries.filter((entry) => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= start && entryDate <= end;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    } else if (viewMode === 'monthly') {
+      const { start, end } = getMonthRange(currentMonthOffset);
+      return entries.filter((entry) => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= start && entryDate <= end;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+    return entries;
+  }, [entries, viewMode, currentWeekOffset, currentMonthOffset]);
+
+  /**
+   * 주별 보기 제목
+   */
+  const getWeekTitle = () => {
+    const { start, end } = getWeekRange(currentWeekOffset);
+    const isCurrentWeek = currentWeekOffset === 0;
+    
+    if (isCurrentWeek) {
+      return `이번 주 (${formatDate(start)} ~ ${formatDate(end)})`;
+    }
+    return `${formatDate(start)} ~ ${formatDate(end)}`;
+  };
+
+  /**
+   * 월별 보기 제목
+   */
+  const getMonthTitle = () => {
+    const { year, month } = getMonthRange(currentMonthOffset);
+    const isCurrentMonth = currentMonthOffset === 0 && new Date().getMonth() === month;
+    
+    const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+    if (isCurrentMonth) {
+      return `이번 달 (${year}년 ${monthNames[month]})`;
+    }
+    return `${year}년 ${monthNames[month]}`;
+  };
+
+  /**
+   * 다음 주로 이동 가능한지 확인 (현재 주보다 미래가 아닌 경우만)
+   */
+  const canGoToNextWeek = () => {
+    return currentWeekOffset < 0; // 현재 주(0)보다 미래로는 이동 불가
+  };
+
+  /**
+   * 다음 달로 이동 가능한지 확인
+   */
+  const canGoToNextMonth = () => {
+    return currentMonthOffset < 0; // 현재 달(0)보다 미래로는 이동 불가
+  };
+
+  /**
    * 일지 생성
    */
   const handleCreateEntry = () => {
@@ -72,8 +262,12 @@ const Diary = ({ title, description }) => {
       return;
     }
 
+    // ID 생성 (이벤트 핸들러 내부이므로 안전)
+    // eslint-disable-next-line react-compiler/react-compiler
+    const entryId = `${new Date().getTime()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const newEntry = {
-      id: Date.now(),
+      id: entryId,
       date: formData.date,
       stock: formData.stock,
       type: formData.type,
@@ -199,11 +393,10 @@ const Diary = ({ title, description }) => {
    * 통계 계산 (이번 주 기록 수)
    */
   const thisWeekEntries = useMemo(() => {
-    const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const { start, end } = getWeekRange(0);
     return entries.filter((entry) => {
       const entryDate = new Date(entry.date);
-      return entryDate >= weekAgo;
+      return entryDate >= start && entryDate <= end;
     }).length;
   }, [entries]);
 
@@ -217,6 +410,15 @@ const Diary = ({ title, description }) => {
     ).length;
     return Math.round((positiveCount / entries.length) * 100);
   }, [entries]);
+
+  // 월별 캘린더 데이터
+  const calendarData = useMemo(() => {
+    if (viewMode === 'monthly') {
+      const { year, month } = getMonthRange(currentMonthOffset);
+      return generateCalendar(year, month);
+    }
+    return null;
+  }, [viewMode, currentMonthOffset]);
 
   return (
     <div className="space-y-6">
@@ -253,8 +455,53 @@ const Diary = ({ title, description }) => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2 space-y-4">
+          {/* 뷰 모드 탭 */}
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-slate-900">최근 거래 일지</h3>
+            <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('recent');
+                  setCurrentWeekOffset(0);
+                  setCurrentMonthOffset(0);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                  viewMode === 'recent'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                최근 매매일지
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('weekly');
+                  setCurrentWeekOffset(0);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                  viewMode === 'weekly'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                주별로 보기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('monthly');
+                  setCurrentMonthOffset(0);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                  viewMode === 'monthly'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                월별로 보기
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -267,6 +514,61 @@ const Diary = ({ title, description }) => {
               {showForm ? '취소' : '+ 새 일지 작성'}
             </button>
           </div>
+
+          {/* 주별/월별 네비게이션 */}
+          {viewMode === 'weekly' && (
+            <div className="flex items-center justify-between rounded-xl bg-white p-4 border border-slate-100 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setCurrentWeekOffset(currentWeekOffset - 1)}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
+              >
+                <span>←</span>
+                <span>저번 주</span>
+              </button>
+              <h3 className="text-lg font-bold text-slate-900">{getWeekTitle()}</h3>
+              <button
+                type="button"
+                onClick={() => setCurrentWeekOffset(currentWeekOffset + 1)}
+                disabled={!canGoToNextWeek()}
+                className={`flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                  canGoToNextWeek()
+                    ? 'bg-white text-slate-700 hover:bg-slate-50'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span>다음 주</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
+
+          {viewMode === 'monthly' && (
+            <div className="flex items-center justify-between rounded-xl bg-white p-4 border border-slate-100 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setCurrentMonthOffset(currentMonthOffset - 1)}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
+              >
+                <span>←</span>
+                <span>저번 달</span>
+              </button>
+              <h3 className="text-lg font-bold text-slate-900">{getMonthTitle()}</h3>
+              <button
+                type="button"
+                onClick={() => setCurrentMonthOffset(currentMonthOffset + 1)}
+                disabled={!canGoToNextMonth()}
+                className={`flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                  canGoToNextMonth()
+                    ? 'bg-white text-slate-700 hover:bg-slate-50'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span>다음 달</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
 
           {/* 일지 작성/수정 폼 */}
           {showForm && (
@@ -391,88 +693,154 @@ const Diary = ({ title, description }) => {
             </div>
           )}
 
-          {/* 일지 목록 */}
-          {entries.map((entry) => (
-            <article
-              key={entry.id}
-              className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                      entry.type === 'BUY'
-                        ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
-                        : 'bg-gradient-to-br from-rose-500 to-rose-600'
-                    } text-white shadow-sm`}
-                  >
-                    <span className="text-xl">{entry.type === 'BUY' ? '📈' : '📉'}</span>
+          {/* 월별 캘린더 뷰 */}
+          {viewMode === 'monthly' && calendarData && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="grid grid-cols-7 gap-2">
+                {/* 요일 헤더 */}
+                {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+                  <div key={day} className="text-center text-sm font-bold text-slate-700 py-2">
+                    {day}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-900">{entry.stock}</h4>
-                      <span
-                        className={`rounded-lg px-2 py-1 text-xs font-bold ${
-                          entry.type === 'BUY'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-rose-50 text-rose-700'
-                        }`}
+                ))}
+                
+                {/* 캘린더 날짜 */}
+                {calendarData.map((week, weekIndex) =>
+                  week.map((date, dayIndex) => {
+                    const { month } = getMonthRange(currentMonthOffset);
+                    const isCurrentMonth = date.getMonth() === month;
+                    const isToday = formatDate(date) === formatDate(new Date());
+                    const hasEntry = hasEntryOnDate(date);
+                    const entryCount = getEntryCountOnDate(date);
+                    
+                    return (
+                      <div
+                        key={`${weekIndex}-${dayIndex}`}
+                        className={`relative rounded-lg border-2 p-2 min-h-[80px] transition-all duration-200 ${
+                          isCurrentMonth
+                            ? hasEntry
+                              ? 'border-violet-300 bg-violet-50 hover:bg-violet-100'
+                              : 'border-slate-100 bg-white hover:bg-slate-50'
+                            : 'border-transparent bg-slate-50'
+                        } ${isToday ? 'ring-2 ring-violet-500' : ''}`}
                       >
-                        {entry.type === 'BUY' ? '매수' : '매도'}
-                      </span>
+                        <div
+                          className={`text-sm font-semibold mb-1 ${
+                            isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
+                          } ${isToday ? 'text-violet-700' : ''}`}
+                        >
+                          {date.getDate()}
+                        </div>
+                        {hasEntry && isCurrentMonth && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-violet-600 font-bold">📝</span>
+                            {entryCount > 1 && (
+                              <span className="text-xs text-violet-600 font-semibold">
+                                {entryCount}개
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 일지 목록 */}
+          {viewMode !== 'monthly' && (
+            <>
+              {filteredEntries.length === 0 ? (
+                <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+                  <p className="text-slate-500">표시할 매매일지가 없습니다.</p>
+                </div>
+              ) : (
+                filteredEntries.map((entry) => (
+                  <article
+                    key={entry.id}
+                    className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md"
+                  >
+                    <div className="mb-4 flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                            entry.type === 'BUY'
+                              ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+                              : 'bg-gradient-to-br from-rose-500 to-rose-600'
+                          } text-white shadow-sm`}
+                        >
+                          <span className="text-xl">{entry.type === 'BUY' ? '📈' : '📉'}</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900">{entry.stock}</h4>
+                            <span
+                              className={`rounded-lg px-2 py-1 text-xs font-bold ${
+                                entry.type === 'BUY'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-rose-50 text-rose-700'
+                              }`}
+                            >
+                              {entry.type === 'BUY' ? '매수' : '매도'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500">{entry.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-slate-900">{entry.price}</p>
+                        <p className="text-sm text-slate-600">{entry.shares}주</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-500">{entry.date}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-slate-900">{entry.price}</p>
-                  <p className="text-sm text-slate-600">{entry.shares}주</p>
-                </div>
-              </div>
 
-              <div className="mb-4 rounded-xl bg-slate-50 p-4">
-                <p className="mb-1 text-sm font-semibold text-slate-700">매매 근거</p>
-                <p className="text-sm text-slate-600 leading-relaxed">{entry.reason}</p>
-              </div>
+                    <div className="mb-4 rounded-xl bg-slate-50 p-4">
+                      <p className="mb-1 text-sm font-semibold text-slate-700">매매 근거</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">{entry.reason}</p>
+                    </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  {entry.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-lg bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-400">감정:</span>
-                    <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                      {entry.emotion}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(entry)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteEntry(entry.id)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition-all duration-200 hover:bg-rose-50"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2">
+                        {entry.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-lg bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-400">감정:</span>
+                          <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                            {entry.emotion}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(entry)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition-all duration-200 hover:bg-rose-50"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </>
+          )}
         </section>
 
         <section className="space-y-6">
